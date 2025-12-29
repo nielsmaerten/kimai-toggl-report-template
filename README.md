@@ -4,7 +4,8 @@ A [Kimai](https://www.kimai.org/) template modeled after [Toggl's](https://toggl
 
 ## Preview
 
-![Template Preview](screenshot.png)
+<!-- Screenshot will be added here -->
+_(Screenshot coming soon)_
 
 ## Installation
 
