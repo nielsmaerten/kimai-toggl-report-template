@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="utf-8">
+   <title>Detailed Report</title>
+   <style>
+       @page {
+           margin: 20mm 15mm;
+       }
+       
+       body {
+           font-family: Arial, Helvetica, sans-serif;
+           font-size: 10pt;
+           color: #333;
+       }
+       
+       .header {
+           margin-bottom: 20px;
+           padding-bottom: 15px;
+           border-bottom: 2px solid #e74c3c;
+       }
+       
+       .header h1 {
+           margin: 0 0 10px 0;
+           font-size: 24pt;
+           color: #e74c3c;
+           font-weight: normal;
+       }
+       
+       .header .report-info {
+           font-size: 9pt;
+           color: #666;
+       }
+       
+       .summary {
+           background-color: #f8f9fa;
+           padding: 15px;
+           margin-bottom: 20px;
+           border-radius: 4px;
+       }
+       
+       .summary-row {
+           display: table;
+           width: 100%;
+           margin-bottom: 8px;
+       }
+       
+       .summary-item {
+           display: table-cell;
+           width: 50%;
+       }
+       
+       .summary-label {
+           font-size: 9pt;
+           color: #666;
+           margin-bottom: 3px;
+       }
+       
+       .summary-value {
+           font-size: 14pt;
+           font-weight: bold;
+           color: #333;
+       }
+       
+       .project-group {
+           margin-bottom: 25px;
+           page-break-inside: avoid;
+       }
+       
+       .project-header {
+           background-color: #f1f1f1;
+           padding: 8px 10px;
+           margin-bottom: 5px;
+           font-weight: bold;
+           font-size: 11pt;
+       }
+       
+       .project-name {
+           color: #e74c3c;
+       }
+       
+       table.entries {
+           width: 100%;
+           border-collapse: collapse;
+           margin-bottom: 10px;
+       }
+       
+       table.entries th {
+           background-color: #fafafa;
+           padding: 8px 5px;
+           text-align: left;
+           font-size: 9pt;
+           font-weight: normal;
+           color: #666;
+           border-bottom: 1px solid #ddd;
+       }
+       
+       table.entries td {
+           padding: 6px 5px;
+           font-size: 9pt;
+           border-bottom: 1px solid #f0f0f0;
+       }
+       
+       table.entries tr:hover {
+           background-color: #fafafa;
+       }
+       
+       .duration {
+           text-align: right;
+           font-family: 'Courier New', monospace;
+       }
+       
+       .date {
+           color: #666;
+       }
+       
+       .project-total {
+           text-align: right;
+           padding: 8px 5px;
+           font-weight: bold;
+           background-color: #f8f9fa;
+           margin-top: 5px;
+       }
+       
+       .footer {
+           margin-top: 30px;
+           padding-top: 15px;
+           border-top: 1px solid #ddd;
+           text-align: right;
+       }
+       
+       .grand-total {
+           font-size: 16pt;
+           font-weight: bold;
+           color: #e74c3c;
+       }
+       
+       .tag {
+           display: inline-block;
+           background-color: #e9ecef;
+           padding: 2px 6px;
+           border-radius: 3px;
+           font-size: 8pt;
+           margin-right: 3px;
+       }
+   </style>
+</head>
+<body>
+   {# Header Section #}
+   <div class="header">
+       <h1>Detailed Report</h1>
+       <div class="report-info">
+           {% if query.begin is not empty %}
+               Report Period: {{ query.begin|date('Y-m-d') }} - {{ query.end|date('Y-m-d') }}
+           {% endif %}
+           <br>
+           Generated: {{ 'now'|date('Y-m-d H:i') }}
+       </div>
+   </div>
+
+   {# Summary Section #}
+   {% set total_duration = 0 %}
+   {% set total_rate = 0 %}
+   {% for entry in entries %}
+       {% set total_duration = total_duration + entry.duration %}
+       {% set total_rate = total_rate + entry.rate %}
+   {% endfor %}
+   
+   <div class="summary">
+       <div class="summary-row">
+           <div class="summary-item">
+               <div class="summary-label">Total Duration</div>
+               <div class="summary-value">{{ total_duration|duration }}</div>
+           </div>
+           <div class="summary-item">
+               <div class="summary-label">Total Entries</div>
+               <div class="summary-value">{{ entries|length }}</div>
+           </div>
+       </div>
+       <div class="summary-row">
+           <div class="summary-item">
+               <div class="summary-label">Total Amount</div>
+               <div class="summary-value">{{ total_rate|money }}</div>
+           </div>
+           <div class="summary-item">
+               <div class="summary-label">Date Range</div>
+               <div class="summary-value" style="font-size: 10pt;">
+                   {% if query.begin is not empty %}
+                       {{ (query.end.timestamp - query.begin.timestamp) / 86400 + 1 }} days
+                   {% else %}
+                       All time
+                   {% endif %}
+               </div>
+           </div>
+       </div>
+   </div>
+
+   {# Group entries by project #}
+   {% set projects = {} %}
+   {% for entry in entries %}
+       {% set project_name = entry.project ? entry.project.name : 'No Project' %}
+       {% if projects[project_name] is not defined %}
+           {% set projects = projects|merge({(project_name): []}) %}
+       {% endif %}
+       {% set projects = projects|merge({(project_name): projects[project_name]|merge([entry])}) %}
+   {% endfor %}
+
+   {# Display entries grouped by project #}
+   {% for project_name, project_entries in projects %}
+       <div class="project-group">
+           <div class="project-header">
+               <span class="project-name">{{ project_name }}</span>
+               {% if project_entries[0].project and project_entries[0].project.customer %}
+                   <span style="color: #666; font-weight: normal;"> - {{ project_entries[0].project.customer.name }}</span>
+               {% endif %}
+           </div>
+           
+           <table class="entries">
+               <thead>
+                   <tr>
+                       <th style="width: 10%;">Date</th>
+                       <th style="width: 10%;">User</th>
+                       <th style="width: 15%;">Activity</th>
+                       <th style="width: 35%;">Description</th>
+                       <th style="width: 10%;">Start</th>
+                       <th style="width: 10%;">End</th>
+                       <th style="width: 10%;" class="duration">Duration</th>
+                   </tr>
+               </thead>
+               <tbody>
+                   {% set project_duration = 0 %}
+                   {% for entry in project_entries %}
+                       {% set project_duration = project_duration + entry.duration %}
+                       <tr>
+                           <td class="date">{{ entry.begin|date('Y-m-d') }}</td>
+                           <td>{{ entry.user.alias|default(entry.user.username) }}</td>
+                           <td>{{ entry.activity ? entry.activity.name : '-' }}</td>
+                           <td>
+                               {{ entry.description|default('-') }}
+                               {% if entry.tags is not empty %}
+                                   <br>
+                                   {% for tag in entry.tags %}
+                                       <span class="tag">{{ tag.name }}</span>
+                                   {% endfor %}
+                               {% endif %}
+                           </td>
+                           <td>{{ entry.begin|date('H:i') }}</td>
+                           <td>{{ entry.end ? entry.end|date('H:i') : '-' }}</td>
+                           <td class="duration">{{ entry.duration|duration }}</td>
+                       </tr>
+                   {% endfor %}
+               </tbody>
+           </table>
+           
+           <div class="project-total">
+               Project Total: {{ project_duration|duration }}
+           </div>
+       </div>
+   {% endfor %}
+
+   {# Footer with Grand Total #}
+   <div class="footer">
+       <div style="font-size: 11pt; color: #666; margin-bottom: 5px;">Grand Total</div>
+       <div class="grand-total">{{ total_duration|duration }}</div>
+   </div>
+</body>
+</html>
